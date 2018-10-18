@@ -1,30 +1,50 @@
-.PHONY: deps test publish clean
+.PHONY: deps vet format test publish clena
 
-GOPATH ?= /go
+SHELL  = bash
+GOPATH ?= $(HOME)/.go
 GOBIN  := $(GOPATH)/bin
 PATH   := $(GOPATH)/bin:$(PATH)
 PROJ   := f5er
 DOCKER_USERNAME ?= Monkey
 DOCKER_PASSWORD ?= Magic
 
-LDFLAGS := -ldflags "-X main.commit=`git rev-parse HEAD`"
+LDFLAGS := -ldflags "-X main.commit=$$(git rev-parse HEAD)"
 
-all: deps fmt test $(PROJ) publish
+.ONESHELL:
+
+all: vet format test $(PROJ) publish
 
 deps:
 	@echo "--- collecting ingredients :bento:"
 	GOPATH=$(GOPATH) dep ensure
 
-fmt:
-	GOPATH=$(GOPATH) go fmt *.go
-	GOPATH=$(GOPATH) go fmt f5/*.go
-	GOPATH=$(GOPATH) go tool vet *.go f5/*.go
+vet: deps
+	@export GOPATH=$(GOPATH)
+	go list -f '{{.Dir}}' ./... | grep -vP '(/vendor/|f5er$$)' | xargs go tool vet -all
 
-test: fmt deps 
+format:
+	@echo "--- checking for dirty ingredients :mag_right:"
+	export GOPATH=$(GOPATH)
+	declare -a files
+	files=( $$(gofmt -l $$(find . -name '*.go' -a -not -regex '.+/vendor/.+' | xargs)) )
+	if [[ $${#files[@]} -ge 1 ]]; then
+		[[ $${#files[@]} -eq 1 ]] && s= || s=s
+		echo "Found $${#files[@]} dirty ingredient$${s} :face_nose: - cleaning..."
+		for ((i = 0; i < $${#files[@]}; i++)); do
+			echo -en "\t$${files[$$i]} -> "
+			if gofmt -w "$${files[$$i]}" >&-; then
+				echo "cleaned :sparkles:"
+			else
+				echo "still dirty :slightly_frowning_face: - manual intervention required."
+			fi
+		done
+	fi
+
+test: format vet deps
 	@echo "+++ Is this thing working? :hammer_and_wrench:"
-	GOPATH=$(GOPATH) go test -cover -v 
+	GOPATH=$(GOPATH) go test -cover -v
 
-$(PROJ): deps 
+$(PROJ): deps
 	CGO_ENABLED=0 GOPATH=$(GOPATH) go build $(LDFLAGS) -o $@ -v
 	touch $@ && chmod 755 $@
 
