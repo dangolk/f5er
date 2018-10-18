@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/pr8kerl/f5er/f5"
+	"github.com/rabbitt/f5er/f5"
 	"github.com/spf13/cobra"
 )
 

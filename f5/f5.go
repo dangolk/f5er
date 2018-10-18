@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/jmcvetta/napping"
-	"github.com/pr8kerl/f5er/mergo"
+	"github.com/rabbitt/f5er/mergo"
 )
 
 var (

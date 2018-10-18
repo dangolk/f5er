@@ -7,8 +7,8 @@ import (
 
 	"github.com/jmcvetta/napping"
 
-	"github.com/pr8kerl/f5er/f5"
-	"github.com/pr8kerl/f5er/mergo"
+	"github.com/rabbitt/f5er/f5"
+	"github.com/rabbitt/f5er/mergo"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

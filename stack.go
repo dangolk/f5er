@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/pr8kerl/f5er/f5"
+	"github.com/rabbitt/f5er/f5"
 	"io/ioutil"
 	"log"
 )

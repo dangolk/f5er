@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/pr8kerl/f5er/mergo"
+	"github.com/rabbitt/f5er/mergo"
 )
 
 type LBNodeFQDN struct {
