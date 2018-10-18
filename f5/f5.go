@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jmcvetta/napping"
+	"github.com/pr8kerl/f5er/mergo"
 )
 
 var (
@@ -20,7 +21,9 @@ var (
 	tsport            http.Transport
 	clnt              http.Client
 	headers           http.Header
-	debug             bool
+	debug             bool = false
+	dryrun            bool = false
+	mergeStrategy     mergo.MergeStrategy
 	tokenMutex        = sync.Mutex{}
 	stats_path_prefix string
 )
@@ -98,7 +101,6 @@ func NewInsecure(host string, username string, pwd string, authMethod AuthMethod
 }
 
 func (f *Device) InitSession() {
-
 	// REST connection setup
 	if f.Proto == "https" {
 		tsport = http.Transport{
@@ -125,10 +127,53 @@ func (f *Device) InitSession() {
 
 }
 
+func (f *Device) Debug() bool {
+	return debug
+}
+
 func (f *Device) SetDebug(b bool) {
 	debug = b
 }
 
+func (f *Device) DryRun() bool {
+	return dryrun
+}
+
+func (f *Device) SetDryRun(b bool) {
+	dryrun = b
+}
+
+func (f *Device) SetMergeStrategy(s string) {
+	switch s {
+	case "none", "overwrite":
+		mergeStrategy = mergo.Overwrite
+	case "append", "additive":
+		mergeStrategy = mergo.AppendAdditive
+	case "unique-keep-existing", "unique-from-existing":
+		mergeStrategy = mergo.UniqueLastSeen
+	case "unique", "unique-keep-patch", "unique-from-patch":
+		mergeStrategy = mergo.UniqueFirstSeen
+	default:
+		panic(fmt.Sprintf("Invalid merge-strategy '%s'", s))
+	}
+}
+
+func (f *Device) MergeStrategy() mergo.MergeStrategy {
+	return mergeStrategy
+}
+
+func (f *Device) MergeConfig() func(*mergo.Config) {
+	return func(c *mergo.Config) {
+		c.Override = true
+		if f.MergeStrategy() > mergo.Overwrite {
+			c.AppendSlice = true
+			c.MergeStrategy = f.MergeStrategy()
+		} else {
+			c.AppendSlice = false
+		}
+		c.SkipEmptyFields = true
+	}
+}
 func (f *Device) SetTokenAuth(t bool) {
 	debugout := "TOKEN_AUTH"
 	if t {
@@ -259,14 +304,16 @@ func (f *Device) sendRequest(u string, method int, pload interface{}, res interf
 	}
 }
 
-func (f *Device) PrintObject(input interface{}) {
-
+func PrintObject(input interface{}) {
 	jsonresp, err := json.MarshalIndent(&input, "", "\t")
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println(string(jsonresp))
+}
 
+func (f *Device) PrintObject(input interface{}) {
+	PrintObject(input)
 }
 
 // F5 Module data struct

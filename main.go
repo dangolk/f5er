@@ -6,7 +6,9 @@ import (
 	"os"
 
 	"github.com/jmcvetta/napping"
+
 	"github.com/pr8kerl/f5er/f5"
+	"github.com/pr8kerl/f5er/mergo"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -23,6 +25,8 @@ var (
 	transport           *http.Transport
 	client              *http.Client
 	debug               bool
+	dryrun              bool
+	mergeStrategy       string
 	token               bool
 	now                 bool
 	statsPathPrefix     string
@@ -42,6 +46,8 @@ func initialiseConfig() {
 	viper.SetDefault("force", false)
 	viper.SetDefault("statsPathPrefix", "f5")
 	viper.SetDefault("statsShowZeroValues", false)
+	viper.SetDefault("dryrun", false)
+	viper.SetDefault("mergeStrategy", mergo.UniqueFirstSeen.String())
 
 	viper.SetEnvPrefix("f5")
 	viper.BindEnv("device")
@@ -49,10 +55,13 @@ func initialiseConfig() {
 	viper.BindEnv("passwd")
 	viper.BindEnv("debug")
 	viper.BindEnv("token")
+	viper.BindEnv("dryrun")
 
 	viper.BindPFlag("f5", f5Cmd.PersistentFlags().Lookup("f5"))
 	viper.BindPFlag("debug", f5Cmd.PersistentFlags().Lookup("debug"))
 	viper.BindPFlag("input", f5Cmd.PersistentFlags().Lookup("input"))
+	viper.BindPFlag("dryrun", patchCmd.PersistentFlags().Lookup("dryrun"))
+	viper.BindPFlag("mergeStrategy", patchCmd.PersistentFlags().Lookup("merge-strategy"))
 	viper.BindPFlag("pool", onlinePoolMemberCmd.Flags().Lookup("pool"))
 	viper.BindPFlag("pool", offlinePoolMemberCmd.Flags().Lookup("pool"))
 
@@ -112,6 +121,8 @@ func init() {
 	f5Cmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "debug output")
 	f5Cmd.PersistentFlags().BoolVarP(&token, "token", "t", false, "use token auth")
 	f5Cmd.PersistentFlags().StringVarP(&f5Input, "input", "i", "", "input json f5 configuration")
+	patchCmd.PersistentFlags().BoolVarP(&dryrun, "dryrun", "r", false, "show what would be sent without making changes")
+	patchCmd.PersistentFlags().StringVarP(&mergeStrategy, "merge-strategy", "m", mergeStrategy, "Stategy for merging patch data; e.g., overwrite, append,\nunique-keep-patch, unique-keep-original")
 	offlinePoolMemberCmd.Flags().StringVarP(&f5Pool, "pool", "p", "", "F5 pool name")
 	offlinePoolMemberCmd.Flags().BoolVarP(&now, "now", "n", false, "force member offline immediately")
 	onlinePoolMemberCmd.Flags().StringVarP(&f5Pool, "pool", "p", "", "F5 pool name")
@@ -163,6 +174,17 @@ func init() {
 	updateCmd.AddCommand(updateServerSslCmd)
 	updateCmd.AddCommand(updateMonitorHttpCmd)
 	updateCmd.AddCommand(updateStackCmd)
+
+	// patch
+	f5Cmd.AddCommand(patchCmd)
+	patchCmd.AddCommand(patchPoolCmd)
+	patchCmd.AddCommand(patchNodeCmd)
+	patchCmd.AddCommand(patchPolicyCmd)
+	patchCmd.AddCommand(patchVirtualCmd)
+	patchCmd.AddCommand(patchClientSslCmd)
+	patchCmd.AddCommand(patchServerSslCmd)
+	patchCmd.AddCommand(patchMonitorHttpCmd)
+	patchCmd.AddCommand(patchStackCmd)
 
 	// delete
 	f5Cmd.AddCommand(deleteCmd)

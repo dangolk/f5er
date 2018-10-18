@@ -2,7 +2,12 @@ package f5
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/pr8kerl/f5er/mergo"
 )
 
 type LBClientSsl struct {
@@ -53,6 +58,10 @@ type LBClientSsl struct {
 	StrictResume                    string           `json:"strictResume"`
 	UncleanShutdown                 string           `json:"uncleanShutdown"`
 	CertKeyChain                    []LBCertKeyChain `json:"certKeyChain"`
+}
+
+func (target *LBClientSsl) Merge(source *LBClientSsl, opts ...func(*mergo.Config)) (err error) {
+	return mergo.Merge(target, source, opts...)
 }
 
 type LBCertKeyChain struct {
@@ -124,6 +133,48 @@ func (f *Device) UpdateClientSsl(cname string, body *json.RawMessage) (error, *L
 
 }
 
+func (f *Device) PatchClientSsl(name string, patch *LBClientSsl) (error, *LBClientSsl) {
+	name = strings.Replace(name, "/", "~", -1)
+	url := fmt.Sprintf("%s://%s/mgmt/tm/ltm/profile/client-ssl/%s", f.Proto, f.Hostname, name)
+	existing := &LBClientSsl{}
+	var err error
+
+	// Unless we're overwriting, grab the original and merge the patch with
+	// the existing record's data  so that existing settings aren't overwritten,
+	// but instead added to.
+	if f.MergeStrategy() >= mergo.AppendAdditive {
+		err, existing = f.ShowClientSsl(name)
+		if err != nil {
+			return err, nil
+		}
+
+		// merge existing fields into patch so we don't lose settings
+		patch.Merge(existing, f.MergeConfig())
+	}
+
+	// merge the patch with our existing resource settings so we can see if
+	// the patch is already applied or not
+	new := &LBClientSsl{}
+	new.Merge(patch, f.MergeConfig(), func(c *mergo.Config) { c.SkipEmptyFields = false })
+	new.Merge(existing, f.MergeConfig(), func(c *mergo.Config) { c.SkipEmptyFields = false })
+
+	if f.DryRun() {
+		fmt.Printf("Patching: %s\nPatch Diff:\n%s\nPatch Data (merge strategy: %s):\n",
+			url, cmp.Diff(existing, new, cmpopts.EquateEmpty()), f.MergeStrategy())
+		return nil, patch
+	} else {
+		if cmp.Equal(new, existing, cmpopts.EquateEmpty()) {
+			return nil, existing
+		} else {
+			err, _ = f.sendRequest(url, PATCH, patch, existing)
+			if err != nil {
+				return err, nil
+			} else {
+				return nil, existing
+			}
+		}
+	}
+}
 func (f *Device) DeleteClientSsl(cname string) (error, *Response) {
 
 	client := strings.Replace(cname, "/", "~", -1)

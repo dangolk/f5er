@@ -65,6 +65,15 @@ var updateCmd = &cobra.Command{
 	},
 }
 
+var patchCmd = &cobra.Command{
+	Use:   "patch",
+	Short: "patch F5 objects",
+	Long:  "patch an existing F5 object. Patch requires an object, eg. f5er patch pool",
+	Run: func(cmd *cobra.Command, args []string) {
+		patch()
+	},
+}
+
 var deleteCmd = &cobra.Command{
 	Use:   "delete",
 	Short: "delete F5 objects",
@@ -189,6 +198,38 @@ var updatePoolCmd = &cobra.Command{
 				log.Fatal(err)
 			}
 			err, res := appliance.UpdatePool(pname, &body)
+			if err != nil {
+				log.Fatal(err)
+			}
+			appliance.PrintObject(res)
+
+		}
+	},
+}
+
+var patchPoolCmd = &cobra.Command{
+	Use:   "pool",
+	Short: "patch a pool",
+	Long:  "patch an existing pool",
+	Run: func(cmd *cobra.Command, args []string) {
+		checkRequiredFlag("input")
+		if len(args) < 1 {
+			log.Fatal("patch pool requires a pool name as an argument (ie /partition/poolname )")
+		} else {
+			pname := args[0]
+			patch := f5.LBPool{}
+
+			// read in input file
+			dat, err := ioutil.ReadFile(f5Input)
+			if err != nil {
+				log.Fatal(err)
+			}
+			// convert bytes to a json message
+			err = json.Unmarshal(dat, &patch)
+			if err != nil {
+				log.Fatal(err)
+			}
+			err, res := appliance.PatchPool(pname, &patch)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -449,6 +490,7 @@ var addVirtualCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		err, res := appliance.AddVirtual(&body)
 		if err != nil {
 			log.Fatal(err)
@@ -479,6 +521,41 @@ var updateVirtualCmd = &cobra.Command{
 				log.Fatal(err)
 			}
 			err, res := appliance.UpdateVirtual(name, &body)
+			if err != nil {
+				log.Fatal(err)
+			}
+			appliance.PrintObject(res)
+		}
+	},
+}
+
+var patchVirtualCmd = &cobra.Command{
+	Use:   "virtual",
+	Short: "patch a virtual server",
+	Long:  "patch an existing virtual server",
+	Run: func(cmd *cobra.Command, args []string) {
+		checkRequiredFlag("input")
+		if len(args) < 1 {
+			log.Fatal("patch virtual requires a virtual server name as an argument (ie /partition/virtualservername )")
+		} else {
+			name := args[0]
+			patch := f5.LBVirtual{}
+
+			appliance.SetDryRun(dryrun)
+			appliance.SetMergeStrategy(mergeStrategy)
+
+			// read in input file
+			dat, err := ioutil.ReadFile(f5Input)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			// convert bytes to a json message
+			err = json.Unmarshal(dat, &patch)
+			if err != nil {
+				log.Fatal(err)
+			}
+			err, res := appliance.PatchVirtual(name, &patch)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -611,6 +688,40 @@ var updatePolicyCmd = &cobra.Command{
 	},
 }
 
+var patchPolicyCmd = &cobra.Command{
+	Use:   "policy",
+	Short: "patch a policy",
+	Long:  "patch an existing F5 policy",
+	Run: func(cmd *cobra.Command, args []string) {
+		checkRequiredFlag("input")
+		if len(args) < 1 {
+			log.Fatal("patch policy requires a policy name as an argument (ie /partition/policy )")
+		} else {
+			name := args[0]
+			patch := f5.LBPolicy{}
+
+			appliance.SetDryRun(dryrun)
+			appliance.SetMergeStrategy(mergeStrategy)
+
+			// read in input file
+			dat, err := ioutil.ReadFile(f5Input)
+			if err != nil {
+				log.Fatal(err)
+			}
+			// convert bytes to a json message
+			err = json.Unmarshal(dat, &patch)
+			if err != nil {
+				log.Fatal(err)
+			}
+			err, res := appliance.PatchPolicy(name, &patch)
+			if err != nil {
+				log.Fatal(err)
+			}
+			appliance.PrintObject(res)
+		}
+	},
+}
+
 var deletePolicyCmd = &cobra.Command{
 	Use:   "policy",
 	Short: "delete a policy",
@@ -700,6 +811,40 @@ var updateNodeCmd = &cobra.Command{
 				log.Fatal(err)
 			}
 			err, res := appliance.UpdateNode(name, &body)
+			if err != nil {
+				log.Fatal(err)
+			}
+			appliance.PrintObject(res)
+		}
+	},
+}
+
+var patchNodeCmd = &cobra.Command{
+	Use:   "node",
+	Short: "patche a node",
+	Long:  "patche an existing F5 node",
+	Run: func(cmd *cobra.Command, args []string) {
+		checkRequiredFlag("input")
+		if len(args) < 1 {
+			log.Fatal("patche node requires a node name as an argument (ie /partition/nodename )")
+		} else {
+			name := args[0]
+			patch := f5.LBNode{}
+
+			appliance.SetDryRun(dryrun)
+			appliance.SetMergeStrategy(mergeStrategy)
+
+			// read in input file
+			dat, err := ioutil.ReadFile(f5Input)
+			if err != nil {
+				log.Fatal(err)
+			}
+			// convert bytes to a json message
+			err = json.Unmarshal(dat, &patch)
+			if err != nil {
+				log.Fatal(err)
+			}
+			err, res := appliance.PatchNode(name, &patch)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -980,6 +1125,40 @@ var updateServerSslCmd = &cobra.Command{
 	},
 }
 
+var patchServerSslCmd = &cobra.Command{
+	Use:   "server-ssl",
+	Short: "patch a server-ssl profile",
+	Long:  "patch an existing F5 server-ssl profile",
+	Run: func(cmd *cobra.Command, args []string) {
+		checkRequiredFlag("input")
+		if len(args) < 1 {
+			log.Fatal("patch server-ssl requires a server-ssl profile name as an argument (ie /partition/profilename )")
+		} else {
+			name := args[0]
+			patch := f5.LBServerSsl{}
+
+			appliance.SetDryRun(dryrun)
+			appliance.SetMergeStrategy(mergeStrategy)
+
+			// read in input file
+			dat, err := ioutil.ReadFile(f5Input)
+			if err != nil {
+				log.Fatal(err)
+			}
+			// convert bytes to a json message
+			err = json.Unmarshal(dat, &patch)
+			if err != nil {
+				log.Fatal(err)
+			}
+			err, res := appliance.PatchServerSsl(name, &patch)
+			if err != nil {
+				log.Fatal(err)
+			}
+			appliance.PrintObject(res)
+		}
+	},
+}
+
 var deleteServerSslCmd = &cobra.Command{
 	Use:   "server-ssl",
 	Short: "delete a server-ssl profile",
@@ -1069,6 +1248,40 @@ var updateClientSslCmd = &cobra.Command{
 			}
 			name := args[0]
 			err, res := appliance.UpdateClientSsl(name, &body)
+			if err != nil {
+				log.Fatal(err)
+			}
+			appliance.PrintObject(res)
+		}
+	},
+}
+
+var patchClientSslCmd = &cobra.Command{
+	Use:   "client-ssl",
+	Short: "patch a client-ssl profile",
+	Long:  "patch an existing F5 client-ssl profile",
+	Run: func(cmd *cobra.Command, args []string) {
+		checkRequiredFlag("input")
+		if len(args) < 1 {
+			log.Fatal("patch client-ssl requires a client-ssl profile name as an argument (ie /partition/profilename )")
+		} else {
+			patch := f5.LBClientSsl{}
+
+			appliance.SetDryRun(dryrun)
+			appliance.SetMergeStrategy(mergeStrategy)
+
+			// read in input file
+			dat, err := ioutil.ReadFile(f5Input)
+			if err != nil {
+				log.Fatal(err)
+			}
+			// convert bytes to a json message
+			err = json.Unmarshal(dat, &patch)
+			if err != nil {
+				log.Fatal(err)
+			}
+			name := args[0]
+			err, res := appliance.PatchClientSsl(name, &patch)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -1174,6 +1387,40 @@ var updateMonitorHttpCmd = &cobra.Command{
 	},
 }
 
+var patchMonitorHttpCmd = &cobra.Command{
+	Use:   "monitor-http",
+	Short: "patch a monitor-http profile",
+	Long:  "patch an existing F5 monitor-http profile",
+	Run: func(cmd *cobra.Command, args []string) {
+		checkRequiredFlag("input")
+		if len(args) < 1 {
+			log.Fatal("patch monitor-http requires a monitor-http profile name as an argument (ie /partition/monitorname )")
+		} else {
+			name := args[0]
+			patch := f5.LBMonitorHttp{}
+
+			appliance.SetDryRun(dryrun)
+			appliance.SetMergeStrategy(mergeStrategy)
+
+			// read in input file
+			dat, err := ioutil.ReadFile(f5Input)
+			if err != nil {
+				log.Fatal(err)
+			}
+			// convert bytes to a json message
+			err = json.Unmarshal(dat, &patch)
+			if err != nil {
+				log.Fatal(err)
+			}
+			err, res := appliance.PatchMonitorHttp(name, &patch)
+			if err != nil {
+				log.Fatal(err)
+			}
+			appliance.PrintObject(res)
+		}
+	},
+}
+
 var deleteMonitorHttpCmd = &cobra.Command{
 	Use:   "monitor-http",
 	Short: "delete a monitor-http profile",
@@ -1219,6 +1466,20 @@ var updateStackCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		checkRequiredFlag("input")
 		updateStack()
+	},
+}
+
+var patchStackCmd = &cobra.Command{
+	Use:   "stack",
+	Short: "patch a stack",
+	Long:  "patch a stack",
+	Run: func(cmd *cobra.Command, args []string) {
+		checkRequiredFlag("input")
+
+		appliance.SetDryRun(dryrun)
+		appliance.SetMergeStrategy(mergeStrategy)
+
+		patchStack()
 	},
 }
 
@@ -1360,6 +1621,10 @@ func add() {
 
 func update() {
 	fmt.Println("what sort of F5 object would you like to update?")
+}
+
+func patch() {
+	fmt.Println("what sort of F5 object would you like to patch?")
 }
 
 func delete() {

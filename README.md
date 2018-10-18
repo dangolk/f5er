@@ -10,11 +10,11 @@ Create, modify and delete F5 objects easily, using json input files.
 
 A convenience entity called a **stack** can be used to act upon nodes, their pool and its virtual server as one.
 
-Supports the REST methods GET (show), POST (create), PUT (update) and DELETE (delete).
+Supports the REST methods GET (show), POST (create), PUT (update), PATCH (patch), and DELETE (delete).
 
 Most commands will display the response in json as provided by the F5 device. Please note that although the response json may look similar to input json, some json object fields differ. For example, pool members within a pool are displayed within a membersReference object in a response, however members must be defined as an array within the **members** array in a pool object. Also some json object response fields are read-only and cannot be used with an input object (the object supplied in the body of a POST or PUT operation.
 
-It can now display statistics in graphite format for virtuals, pools, nodes and rules. 
+It can now display statistics in graphite format for virtuals, pools, nodes and rules.
 If you are a prometheus user, then also check out [bigip_exporter](https://github.com/ExpressenAB/bigip_exporter) which uses the f5 package.
 
 ## Installation
@@ -55,7 +55,7 @@ export F5_DEVICE F5_USERNAME F5_PASSWD F5_TOKEN
 
 F5 ip address/hostname and login credentials can also be stored in a json input file in the current directory.
 The expected file is called **f5.json** and it can be in the current working directory or in $HOME/.f5/.
-Below is a full example of all current configurables. 
+Below is a full example of all current configurables.
 
 ```
 {
@@ -76,7 +76,7 @@ The **stats_** configuration options (used for displaying statistics) are only a
 
 ### Authentication
 
-Big-IP devices allow authentication to the REST API using basic http authentication or using a proprietary token authentication. The default is to use 
+Big-IP devices allow authentication to the REST API using basic http authentication or using a proprietary token authentication. The default is to use
 basic auth method. To use token auth, you can set the token flag to true on the command line, in the config file, or using the F5_TOKEN environment variable.
 
 ```
@@ -102,6 +102,7 @@ Available Commands:
   help        Help about any command
   offline     offline a pool member
   online      online a pool member
+  patch       patch F5 object, updating only specified fields
   run         runs a bash command on the f5
   show        show F5 objects
   stats       get F5 statistics
@@ -156,16 +157,16 @@ Use "f5er show [command] --help" for more information about a command.
 
 ## Stacks
 
-This is a convenience construct and does not exist within F5 terminology. 
+This is a convenience construct and does not exist within F5 terminology.
 It effectively allows commands to work on multiple nodes, pools, virtual servers, rules and policies in one operation. It uses a REST transaction to do so.
-Look at the file stack.json to see how to structure the input file.
-Show, add, update and delete operations are supported.
+Look at the file stack.json to see how to structure the input file, but generally you'll want at least a FullPath field for each object.
+Show, add, update, patch and delete operations are supported.
 
 ```
 ./f5er add stack -h
 add a new stack
 
-Usage: 
+Usage:
   f5er add stack [flags]
 
  Available Flags:
@@ -218,7 +219,7 @@ f5er show pool /partition/poolname
 
 ### Add a new pool
 
-Provide a json input file with all the new pool configuration information. You can base a new pool on the output from a current pool. 
+Provide a json input file with all the new pool configuration information. You can base a new pool on the output from a current pool.
 
 ```
 f5er add pool --input=pool.json
@@ -228,12 +229,62 @@ f5er add pool --input=pool.json
 
 You can modify the config of an existing pool, including the pool members.
 
-Again, provide a json input file with the updated configuration
+Again, provide a json input file with the updated configuration. Be aware though, any fields not provided for the
+resource will be set to their default values. So, when modifying objects using the update command, make sure you
+set the object's fields to the final state that they should be in, or you'll find existing settings reset.
 
 ```
 f5er update pool --input=pool.json
 ```
 
+
+### Patch an existing pool
+
+In addition to updating an object, you can choose to patch an object. Patching allows you to specify only the fields you
+care about modifying. In addition, you have the option to completely overwrite the chosen fields with your patch data,
+or optionally, you can append your patch to existing (array type) fields, or lastly, you can choose to merge your patch
+with the existing data uniquely such that the resultant object is a union of both the patch's fields, and the existing
+f5 object's fields that would be affected by the patch.
+
+For example, if you had a virtual object like so:
+
+```
+{
+  "name": "virtual-a",
+  "fullPath": /Common/virtual-a",
+  "profiles": [
+    { "name": "/Common/profile-a" }
+  ],
+  "rules": [ "rule-a" ]
+}
+```
+
+and you wanted to uniquely merge the following patch:
+
+```
+$ cat input.json
+{
+  "profiles": [ { "name": "/Common/profile-b" } ],
+  "rules": [ { "name": "rule-a" }, { "name": "rule-b" } ]
+}
+$ f5er patch virtual --merge-strategy unique -i input.json /Common/virtual-a
+```
+
+you would end up with the following:
+```
+{
+  "name": "virtual-a",
+  "fullPath": /Common/virtual-a",
+  "profiles": [
+    { "name": "/Common/profile-a" },
+    { "name": "/Common/profile-b" }
+  ],
+  "rules": [ "rule-a", "rule-b" ]
+}
+```
+
+Note: you can pass the `--dryrun` option to the `patch` command which will cause `f5er` to show you a diff between the existing object state, and what it would look like
+with the patch applied. Additionally, it will show you what patch data it would use when applying the patch (taking `merge-strategy` into account).
 
 ## Pool members
 
@@ -307,8 +358,8 @@ Uploaded: 2017-07-31T16:30:01Z Expires May 28 12:00:00 2020 GMT
 
 $ ./f5er add key mysite_com PARTITION mysite.com.key
 Name: mysite_com.key Partition: DEV
-Issuer: 
-Subject: 
+Issuer:
+Subject:
 Strength: 0 Curve:  Type: rsa-private
 Checksum: SHA1:1679:1111f23b7c0a3f53a6809c4608e6c8319a46a3a9
 Uploaded: 2017-07-31T16:30:18Z Expires
@@ -326,4 +377,3 @@ drwxr-xr-x.  2 root root 4096 Jun 30  2016 requires
 lrwxrwxrwx.  1 root root   31 Jun 30  2016 run -> /etc/bigstart/scripts/restjavad
 drwx------.  2 root root 4096 Jun  3 23:44 supervise
 ```
-

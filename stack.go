@@ -522,6 +522,158 @@ func updateStack() {
 
 }
 
+func patchStack() {
+
+	stack := LBStack{}
+	// read in json file
+	dat, err := ioutil.ReadFile(f5Input)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// convert json to a stack struct
+	err = json.Unmarshal(dat, &stack)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err, tid := appliance.StartTransaction()
+	if err != nil {
+		log.Fatalf("error creating transaction: %s\n", err)
+	} else {
+		log.Printf("transaction %s created\n", tid)
+	}
+
+	// patch server-ssl
+	for count, n := range stack.ServerSsl {
+
+		obj := f5.LBServerSsl{}
+		// convert json to a struct - make sure it is valid
+		err = json.Unmarshal(n, &obj)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("\nserver-ssl[%d]: %s\n", count, obj.FullPath)
+
+		// use the raw json to add - only set minimal number of fields
+		err, res := appliance.PatchServerSsl(obj.FullPath, &obj)
+		if err != nil {
+			log.Printf("error updating server-ssl %s : %s\n", obj.FullPath, err)
+		} else {
+			appliance.PrintObject(&res)
+		}
+
+	}
+
+	// patch client-ssl
+	for count, n := range stack.ServerSsl {
+
+		obj := f5.LBClientSsl{}
+		// convert json to a struct - make sure it is valid
+		err = json.Unmarshal(n, &obj)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("\nclient-ssl[%d]: %s\n", count, obj.FullPath)
+
+		// use the raw json to add - only set minimal number of fields
+		err, res := appliance.PatchClientSsl(obj.FullPath, &obj)
+		if err != nil {
+			log.Printf("error updating client-ssl %s : %s\n", obj.FullPath, err)
+		} else {
+			appliance.PrintObject(&res)
+		}
+
+	}
+
+	// nodes
+	for count, n := range stack.Nodes {
+
+		node := f5.LBNode{}
+		// convert json to a node struct
+		err = json.Unmarshal(n, &node)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.Printf("\nnode[%d]: %s\n", count, node.FullPath)
+
+		err, res := appliance.PatchNode(node.FullPath, &node)
+		if err != nil {
+			log.Printf("error adding virtual %s : %s\n", node.FullPath, err)
+		} else {
+			appliance.PrintObject(&res)
+		}
+
+	}
+
+	// pools
+	for count, p := range stack.Pools {
+
+		pool := f5.LBPool{}
+		if err := json.Unmarshal(p, &pool); err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("\npool[%d]: %s\n", count, pool.FullPath)
+
+		err, res := appliance.PatchPool(pool.FullPath, &pool)
+		if err != nil {
+			log.Printf("error adding pool %s : %s\n", pool.FullPath, err)
+		} else {
+			appliance.PrintObject(&res)
+		}
+
+	}
+
+	// patch policies
+	for count, n := range stack.Policies {
+
+		obj := f5.LBPolicy{}
+		// convert json to a struct - make sure it is valid
+		err = json.Unmarshal(n, &obj)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("\npolicy[%d]: %s\n", count, obj.FullPath)
+
+		// use the raw json to add - only set minimal number of fields
+		err, res := appliance.PatchPolicy(obj.FullPath, &obj)
+		if err != nil {
+			log.Printf("error updating policy %s : %s\n", obj.FullPath, err)
+		} else {
+			appliance.PrintObject(&res)
+		}
+
+	}
+
+	// patch virtual
+	for count, v := range stack.Virtuals {
+
+		virt := f5.LBVirtual{}
+		if err := json.Unmarshal(v, &virt); err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("\nvirtual[%d]: %s\n", count, virt.FullPath)
+
+		err, res := appliance.PatchVirtual(virt.FullPath, &virt)
+		if err != nil {
+			log.Printf("error adding virtual %s : %s\n", virt.FullPath, err)
+		} else {
+			appliance.PrintObject(&res)
+		}
+
+	}
+
+	// if we made it here - commit the transaction
+	err = appliance.CommitTransaction(tid)
+	if err != nil {
+		log.Printf("error commiting transaction %s : %s\n", tid, err)
+	} else {
+		log.Printf("transaction committed : %s\n", tid)
+	}
+
+}
+
 func deleteStack() {
 
 	stack := LBStack{}
